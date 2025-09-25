@@ -1,2 +1,2 @@
 # Capstone_RestArea_Front
-Inhatc Capstone Team Project - Rest Area
+Capstone Team Project - Rest Area
