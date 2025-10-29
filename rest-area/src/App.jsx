@@ -1,35 +1,299 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { Header } from './components/Header';
+import { RouteSearch } from './components/RouteSearch';
+import { WeatherTrafficInfo } from './components/WeatherTrafficInfo';
+// import { RestAreaMap } from './components/RestAreaMap';
+// import { RecommendationEngine } from './components/RecommendationEngine';
+// import { SearchFilters } from './components/SearchFilters';
+// import { MenuCard } from './components/MenuCard';
+// import { ReviewList } from './components/ReviewList';
+// import { LoginForm } from './components/LoginForm';
+import { Card, CardContent } from './components/ui/card';
+import { Button } from './components/ui/button';
+import { Badge } from './components/ui/badge';
+import { Heart, MapPin, Utensils, Route, Sparkles } from 'lucide-react';
+import {
+  mockRestAreas,
+  mockMenus,
+  mockReviews,
+} from './data/mockData';
+import {
+  getFavorites,
+  getCurrentUser,
+  getSearchHistory,
+  addToSearchHistory,
+  addToRecentRestAreas,
+} from './utils/storage';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Zustand 스토어 import (activeTab 상태를 전역으로 관리)
+import useAppStore from './stores/appStore';
+
+export default function App() {
+  // Zustand 스토어에서 탭 상태와 탭 변경 함수를 가져옵니다.
+  const { activeTab, setActiveTab } = useAppStore();
+
+  // 탭 변경 외의 UI 상태는 App.jsx에서 'useState'로 관리합니다.
+  const [selectedRestArea, setSelectedRestArea] = React.useState(null);
+  const [selectedMenu, setSelectedMenu] = React.useState(null);
+  const [searchFilters, setSearchFilters] = React.useState({});
+  const [searchResults, setSearchResults] = React.useState([]);
+  const [favorites, setFavorites] = React.useState(getFavorites());
+  const [routeRestAreas, setRouteRestAreas] = React.useState([]);
+  
+  const currentUser = getCurrentUser();
+
+  // 검색 실행
+  const handleSearch = () => {
+    let results = [...mockMenus];
+
+    if (searchFilters.keyword) {
+      const keyword = searchFilters.keyword.toLowerCase();
+      results = results.filter(
+        (menu) =>
+          menu.name.toLowerCase().includes(keyword) ||
+          menu.description.toLowerCase().includes(keyword),
+      );
+      addToSearchHistory(searchFilters.keyword);
+    }
+    // ... (다른 필터 로직 추가 가능) ...
+    setSearchResults(results);
+  };
+
+  // 휴게소 선택
+  const handleSelectRestArea = (restArea) => {
+    setSelectedRestArea(restArea);
+    addToRecentRestAreas(restArea.restAreaId);
+    setActiveTab('restarea-detail'); // '휴게소 상세' 탭으로 변경
+  };
+
+  // 메뉴 선택
+  const handleSelectMenu = (menu) => {
+    setSelectedMenu(menu);
+    setActiveTab('menu-detail'); // '메뉴 상세' 탭으로 변경
+  };
+
+  // 즐겨찾기 목록 업데이트 (LocalStorage 변경 감지)
+  React.useEffect(() => {
+    const updateFavorites = () => setFavorites(getFavorites());
+    window.addEventListener('storage', updateFavorites);
+    return () => window.removeEventListener('storage', updateFavorites);
+  }, []);
+
+  // 메인 컨텐츠 렌더링
+  const renderMainContent = () => {
+    // 로그인이 필요한 탭에 접근 시 'login' 탭으로 강제 이동
+    if (!currentUser && (activeTab === 'favorites' || activeTab === 'operator')) {
+      return (
+        <div className="max-w-md mx-auto">
+          <LoginForm onLoginSuccess={() => setActiveTab('route')} />
+        </div>
+      );
+    }
+
+    switch (activeTab) {
+      case 'route':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Route className="w-5 h-5 text-blue-600" />
+              <h2 className="text-xl font-semibold">경로 검색</h2>
+            </div>
+            {/* 경로 검색 결과(restAreas)를 'setRouteRestAreas'를 통해 App 상태로 업데이트 */}
+            <RouteSearch onRouteRestAreas={setRouteRestAreas} />
+            {routeRestAreas.length > 0 && (
+              <WeatherTrafficInfo
+                restAreas={routeRestAreas}
+                onRestAreaSelect={handleSelectRestArea}
+              />
+            )}
+          </div>
+        );
+
+      case 'map':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="w-5 h-5 text-blue-600" />
+              <h2 className="text-xl font-semibold">주변 휴게소</h2>
+            </div>
+            <RestAreaMap
+              restAreas={mockRestAreas}
+              onSelectRestArea={handleSelectRestArea}
+              selectedRestArea={selectedRestArea}
+            />
+          </div>
+        );
+
+      case 'recommendations':
+        return (
+          <div className="space-y-6">
+            <RecommendationEngine
+              onMenuClick={handleSelectMenu}
+              onRestAreaClick={handleSelectRestArea}
+            />
+          </div>
+        );
+
+      case 'search':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Utensils className="w-5 h-5 text-blue-600" />
+              <h2 className="text-xl font-semibold">메뉴 검색</h2>
+            </div>
+            <SearchFilters
+              filters={searchFilters}
+              onFiltersChange={setSearchFilters}
+              onSearch={handleSearch}
+              searchHistory={getSearchHistory()}
+            />
+            {/* 검색 결과가 있거나, 검색어가 있을 때 */}
+            {searchResults.length > 0 || searchFilters.keyword ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {searchResults.map((menu) => (
+                  <MenuCard
+                    key={menu.menuId}
+                    menu={menu}
+                    onMenuClick={handleSelectMenu}
+                    showRestAreaName={true}
+                  />
+                ))}
+              </div>
+            ) : (
+              // 초기 인기 메뉴
+              <div>
+                <h3 className="text-lg font-medium mb-4">인기 메뉴</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {mockMenus.slice(0, 9).map((menu) => (
+                    <MenuCard
+                      key={menu.menuId}
+                      menu={menu}
+                      onMenuClick={handleSelectMenu}
+                      showRestAreaName={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'favorites':
+        const favoriteMenus = mockMenus.filter((menu) =>
+          favorites.includes(menu.menuId),
+        );
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Heart className="w-5 h-5 text-red-500" />
+              <h2 className="text-xl font-semibold">즐겨찾기</h2>
+              <Badge variant="secondary">{favoriteMenus.length}</Badge>
+            </div>
+            {favoriteMenus.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {favoriteMenus.map((menu) => (
+                  <MenuCard
+                    key={menu.menuId}
+                    menu={menu}
+                    onMenuClick={handleSelectMenu}
+                    showRestAreaName={true}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Heart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">즐겨찾기한 메뉴가 없습니다.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+      
+      // --- 상세 페이지들 ---
+      case 'restarea-detail':
+        if (!selectedRestArea) return null; // 선택된 휴게소가 없으면 렌더링 안함
+        const restAreaMenus = mockMenus.filter(
+          (menu) => menu.restAreaId === selectedRestArea.restAreaId,
+        );
+        return (
+          <div className="space-y-6">
+            <Button variant="ghost" onClick={() => setActiveTab('route')}>
+              ← 뒤로가기
+            </Button>
+            <h2 className="text-2xl font-bold">{selectedRestArea.name}</h2>
+            {/* ... (휴게소 상세 정보 카드) ... */}
+            <h3 className="text-xl font-semibold">휴게소 메뉴</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {restAreaMenus.map((menu) => (
+                <MenuCard
+                  key={menu.menuId}
+                  menu={menu}
+                  onMenuClick={handleSelectMenu}
+                  showRestAreaName={false}
+                />
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'menu-detail':
+        if (!selectedMenu) return null; // 선택된 메뉴가 없으면 렌더링 안함
+        const menuReviews = mockReviews.filter(
+          (review) => review.menuId === selectedMenu.menuId,
+        );
+        return (
+          <div className="space-y-6">
+            <Button variant="ghost" onClick={() => setActiveTab('search')}>
+              ← 뒤로가기
+            </Button>
+            <MenuCard
+              menu={selectedMenu}
+              onMenuClick={() => {}}
+              showRestAreaName={true}
+              detailed={true}
+            />
+            <ReviewList reviews={menuReviews} currentUser={currentUser} />
+          </div>
+        );
+
+      case 'login':
+        return (
+          <div className="max-w-md mx-auto">
+            <LoginForm onLoginSuccess={() => setActiveTab('route')} />
+          </div>
+        );
+
+      default:
+        return (
+          <div className="space-y-6">
+            <RouteSearch onRouteRestAreas={setRouteRestAreas} />
+          </div>
+        );
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    // Bootstrap의 'style=' 대신 Tailwind의 className을 사용합니다.
+    <div className="min-h-screen bg-gray-50">
+      {/* Header는 Zustand 스토어에서 activeTab과 setActiveTab을 직접 가져다 씁니다.
+        (이전 답변에서 Header.jsx를 그렇게 수정했습니다.)
+      */}
+      <Header />
 
-export default App
+      {/*
+        !!! 가장 중요한 수정 !!!
+        Bootstrap의 <Container>를 삭제하고,
+        Tailwind CSS의 레이아웃 클래스를 사용한 <main> 태그로 변경합니다.
+        - "container": max-width를 설정
+        - "mx-auto": 가운데 정렬
+        - "max-w-7xl": 최대 너비를 1280px로 제한 (디자인과 유사하게)
+        - "px-4 py-6": 좌우, 상하 패딩
+      */}
+      <main className="container mx-auto max-w-7xl px-4 py-6">
+        {renderMainContent()}
+      </main>
+    </div>
+  );
+}
