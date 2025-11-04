@@ -20,11 +20,12 @@ import {
 } from './ui/dropdown-menu';
 import { getCurrentUser, logout } from '../utils/storage';
 
+import useAppStore from '../stores/appStore'; //스토어 임포트
+
 export const Header = ({
-  activeTab,
-  onTabChange,
   favoriteCount
 }) => {
+  const { activeTab, setActiveTab } = useAppStore();
   const currentUser = getCurrentUser();
 
   const handleLogout = () => {
@@ -57,7 +58,7 @@ export const Header = ({
                 key={item.id}
                 variant={activeTab === item.id ? "default" : "ghost"}
                 className="relative"
-                onClick={() => onTabChange(item.id)}
+                onClick={() => setActiveTab(item.id)}
               >
                 <Icon className="w-4 h-4 mr-2" />
                 {item.label}
@@ -90,7 +91,7 @@ export const Header = ({
                   return (
                     <DropdownMenuItem
                       key={item.id}
-                      onClick={() => onTabChange(item.id)}
+                      onClick={() => setActiveTab(item.id)}
                       className="flex items-center gap-2"
                     >
                       <Icon className="w-4 h-4" />
@@ -132,7 +133,7 @@ export const Header = ({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {currentUser.role === 'operator' && (
-                    <DropdownMenuItem onClick={() => onTabChange('operator')}>
+                    <DropdownMenuItem onClick={() => setActiveTab('operator')}>
                       <Settings className="w-4 h-4 mr-2" />
                       운영자 대시보드
                     </DropdownMenuItem>
@@ -143,10 +144,10 @@ export const Header = ({
                 </>
               ) : (
                 <>
-                  <DropdownMenuItem onClick={() => onTabChange('login')}>
+                  <DropdownMenuItem onClick={() => setActiveTab('login')}>
                     로그인
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onTabChange('signup')}>
+                  <DropdownMenuItem onClick={() => setActiveTab('signup')}>
                     회원가입
                   </DropdownMenuItem>
                 </>

@@ -2,7 +2,9 @@ import React from 'react';
 import { Header } from './components/Header';
 import { RouteSearch } from './components/RouteSearch';
 import { WeatherTrafficInfo } from './components/WeatherTrafficInfo';
-// import { RestAreaMap } from './components/RestAreaMap';
+import { RestAreaMap } from './components/RestAreaMap';
+import { RestAreaCard } from './components/RestAreaCard';
+import { RestAreaSearchFilters } from './components/RestAreaSearchFilters';
 // import { RecommendationEngine } from './components/RecommendationEngine';
 // import { SearchFilters } from './components/SearchFilters';
 // import { MenuCard } from './components/MenuCard';
@@ -11,7 +13,7 @@ import { WeatherTrafficInfo } from './components/WeatherTrafficInfo';
 import { Card, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Badge } from './components/ui/badge';
-import { Heart, MapPin, Utensils, Route, Sparkles } from 'lucide-react';
+import { Heart, MapPin, Utensils, Route, Sparkles, Search } from 'lucide-react';
 import {
   mockRestAreas,
   mockMenus,
@@ -34,29 +36,69 @@ export default function App() {
 
   // 탭 변경 외의 UI 상태는 App.jsx에서 'useState'로 관리합니다.
   const [selectedRestArea, setSelectedRestArea] = React.useState(null);
-  const [selectedMenu, setSelectedMenu] = React.useState(null);
-  const [searchFilters, setSearchFilters] = React.useState({});
-  const [searchResults, setSearchResults] = React.useState([]);
+  // 1. '메뉴 검색'용으로 이름 변경
+  const [menuSearchFilters, setMenuSearchFilters] = React.useState({});
+  const [menuSearchResults, setMenuSearchResults] = React.useState([]);
+  
+  // 2. '휴게소 검색'용 state 새로 추가 (이것이 에러를 고칩니다)
+  const [restAreaSearchFilters, setRestAreaSearchFilters] = React.useState({});
+  const [restAreaSearchResults, setRestAreaSearchResults] = React.useState([]);
+
   const [favorites, setFavorites] = React.useState(getFavorites());
   const [routeRestAreas, setRouteRestAreas] = React.useState([]);
   
   const currentUser = getCurrentUser();
 
   // 검색 실행
-  const handleSearch = () => {
+  // 1. 기존 '메뉴 검색' 함수 -> handleMenuSearch로 이름 변경
+  const handleMenuSearch = () => {
     let results = [...mockMenus];
-
-    if (searchFilters.keyword) {
-      const keyword = searchFilters.keyword.toLowerCase();
+    // menuSearchFilters와 setMenuSearchResults를 사용하도록 수정
+    if (menuSearchFilters.keyword) { 
+      const keyword = menuSearchFilters.keyword.toLowerCase();
       results = results.filter(
         (menu) =>
           menu.name.toLowerCase().includes(keyword) ||
           menu.description.toLowerCase().includes(keyword),
       );
-      addToSearchHistory(searchFilters.keyword);
+      addToSearchHistory(menuSearchFilters.keyword);
     }
-    // ... (다른 필터 로직 추가 가능) ...
-    setSearchResults(results);
+    setMenuSearchResults(results); 
+  };
+
+  // 2. '휴게소 검색'용 함수 새로 추가
+  const handleRestAreaSearch = () => {
+    console.log("휴게소 검색 실행:", restAreaSearchFilters);
+    
+    let results = [...mockRestAreas]; // 검색 대상을 mockRestAreas로
+
+    // 키워드 필터 (휴게소 이름)
+    if (restAreaSearchFilters.keyword) {
+      const keyword = restAreaSearchFilters.keyword.toLowerCase();
+      results = results.filter(
+        (area) => area.name.toLowerCase().includes(keyword)
+      );
+      addToSearchHistory(restAreaSearchFilters.keyword);
+    }
+    
+    // 노선 필터
+    if (restAreaSearchFilters.routeName) {
+        results = results.filter(
+          (area) => area.routeName === restAreaSearchFilters.routeName
+        );
+    }
+    
+    // 편의시설 필터
+    if (restAreaSearchFilters.facilities && restAreaSearchFilters.facilities.length > 0) {
+        results = results.filter((area) => 
+            area.facilities && 
+            restAreaSearchFilters.facilities.every(facility => 
+                area.facilities.includes(facility)
+            )
+        );
+    }
+
+    setRestAreaSearchResults(results); // '휴게소 검색' 결과 State에 저장
   };
 
   // 휴게소 선택
@@ -138,44 +180,64 @@ export default function App() {
         return (
           <div className="space-y-6">
             <div className="flex items-center gap-2 mb-4">
-              <Utensils className="w-5 h-5 text-blue-600" />
-              <h2 className="text-xl font-semibold">메뉴 검색</h2>
+              <Search className="w-5 h-5 text-blue-600" />
+              <h2 className="text-xl font-semibold">휴게소 검색</h2>
             </div>
-            <SearchFilters
-              filters={searchFilters}
-              onFiltersChange={setSearchFilters}
-              onSearch={handleSearch}
+            
+            <RestAreaSearchFilters
+              filters={restAreaSearchFilters}
+              onFiltersChange={setRestAreaSearchFilters}
+              onSearch={handleRestAreaSearch}
               searchHistory={getSearchHistory()}
             />
-            {/* 검색 결과가 있거나, 검색어가 있을 때 */}
-            {searchResults.length > 0 || searchFilters.keyword ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {searchResults.map((menu) => (
-                  <MenuCard
-                    key={menu.menuId}
-                    menu={menu}
-                    onMenuClick={handleSelectMenu}
-                    showRestAreaName={true}
-                  />
-                ))}
-              </div>
-            ) : (
-              // 초기 인기 메뉴
-              <div>
-                <h3 className="text-lg font-medium mb-4">인기 메뉴</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {mockMenus.slice(0, 9).map((menu) => (
-                    <MenuCard
-                      key={menu.menuId}
-                      menu={menu}
-                      onMenuClick={handleSelectMenu}
-                      showRestAreaName={true}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            
+            <RestAreaMap
+              restAreas={restAreaSearchResults.length > 0 ? restAreaSearchResults : mockRestAreas}
+              onSelectRestArea={handleSelectRestArea}
+              onMenuSelect={handleSelectMenu} 
+              selectedRestArea={selectedRestArea}
+            />
           </div>
+          // <div className="space-y-6">
+          //   <div className="flex items-center gap-2 mb-4">
+          //     <Utensils className="w-5 h-5 text-blue-600" />
+          //     <h2 className="text-xl font-semibold">메뉴 검색</h2>
+          //   </div>
+          //   <SearchFilters
+          //     filters={searchFilters}
+          //     onFiltersChange={setSearchFilters}
+          //     onSearch={handleSearch}
+          //     searchHistory={getSearchHistory()}
+          //   />
+          //   {/* 검색 결과가 있거나, 검색어가 있을 때 */}
+          //   {searchResults.length > 0 || searchFilters.keyword ? (
+          //     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          //       {searchResults.map((menu) => (
+          //         <MenuCard
+          //           key={menu.menuId}
+          //           menu={menu}
+          //           onMenuClick={handleSelectMenu}
+          //           showRestAreaName={true}
+          //         />
+          //       ))}
+          //     </div>
+          //   ) : (
+          //     // 초기 인기 메뉴
+          //     <div>
+          //       <h3 className="text-lg font-medium mb-4">인기 메뉴</h3>
+          //       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          //         {mockMenus.slice(0, 9).map((menu) => (
+          //           <MenuCard
+          //             key={menu.menuId}
+          //             menu={menu}
+          //             onMenuClick={handleSelectMenu}
+          //             showRestAreaName={true}
+          //           />
+          //         ))}
+          //       </div>
+          //     </div>
+          //   )}
+          // </div>
         );
 
       case 'favorites':
@@ -280,7 +342,7 @@ export default function App() {
       {/* Header는 Zustand 스토어에서 activeTab과 setActiveTab을 직접 가져다 씁니다.
         (이전 답변에서 Header.jsx를 그렇게 수정했습니다.)
       */}
-      <Header />
+      <Header favoriteCount={favorites.length} />
 
       {/*
         !!! 가장 중요한 수정 !!!
