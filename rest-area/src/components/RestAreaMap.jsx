@@ -15,7 +15,8 @@ export const RestAreaMap = ({
   restAreas,
   onSelectRestArea,
   onMenuSelect,
-  selectedRestArea
+  selectedRestArea,
+  title
 }) => {
   // AI 추천 휴게소
   const recommendedRestAreas = getPersonalizedRestAreaRecommendations(restAreas, 3);
@@ -47,7 +48,8 @@ export const RestAreaMap = ({
 
       {/* 모든 주변 휴게소 */}
       <div>
-        <h3 className="font-medium mb-4">주변 휴게소 ({restAreas.length}개)</h3>
+        <h3 className="font-medium mb-4">{title} ({restAreas.length}개)</h3>
+        {/* <h3 className="font-medium mb-4">주변 휴게소 ({restAreas.length}개)</h3>*/}
         {restAreas.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {restAreas.map((restArea) => (
@@ -63,7 +65,7 @@ export const RestAreaMap = ({
         ) : (
           <div className="text-center py-12">
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">주변에 휴게소가 없습니다.</p>
+            <p className="text-gray-500">표시할 휴게소가 없습니다.</p>
           </div>
         )}
       </div>
