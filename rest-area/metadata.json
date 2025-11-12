@@ -1,0 +1,5 @@
+{
+  "name": "Copy of AI 고속도로 휴게소 맛집 찾기",
+  "description": "출발지와 목적지를 입력하면 경로상의 고속도로 휴게소 목록을 보여주고, Gemini AI를 통해 각 휴게소의 인기 메뉴를 추천받을 수 있는 웹 애플리케이션입니다.",
+  "requestFramePermissions": []
+}
